@@ -1,0 +1,124 @@
+---
+title: "Rhodamine test"
+date: "25/10/2021"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(emmeans)
+library(lme4)
+```
+
+```{r}
+mounted <- read.csv("Rhtest.csv",fileEncoding="UTF-8-BOM")
+
+mated <- read.csv("mated.csv", fileEncoding="UTF-8-BOM")
+
+```
+
+```{r}
+Rhodamine <- c(    "fluoro" = "A) Fluoromount",
+                    "immuno" = "B) Immu-mount",
+                    "PBS" = "C) PBS"
+                    )
+
+Rhodamine2 <- c(    "fluoro" = "A) Fluoromount",
+                    "immuno" = "B) Immu-mount"
+                    )
+```
+
+
+# Test: mount
+```{r}
+mount_test <- mounted %>%
+  filter(protocol=="mount" | protocol == "cont")
+
+fancy_scientific <- function(l) {
+     # turn in to character string in scientific notation
+     l <- format(l, scientific = TRUE)
+     # quote the part before the exponent to keep all the digits
+     l <- gsub("^(.*)e", "'\\1'e", l)
+     # turn the 'e+' into plotmath format
+     l <- gsub("e", "%*%10^", l)
+     # return this as an expression
+     parse(text=l)
+}
+
+ggplot(mount_test, aes(conc, CTCF, fill=rhodamine)) + geom_boxplot() + facet_grid(mount~.,labeller = as_labeller(Rhodamine)) + xlab("Rhodamine Treatment") + scale_fill_manual(values=c("darkolivegreen1", "deeppink4"),labels=c("Rhodamine 110", "Rhodamine B")) + theme_classic() + theme(legend.title = element_blank()) + scale_x_discrete(labels=c("1" = "original", "2" = "doubled", "cont" = "-ve control")) + theme(legend.position="bottom", text = element_text(size = 12)) + scale_y_continuous(labels=fancy_scientific) 
+
+mount_test_B <-  mount_test %>%
+  filter(rhodamine == "B")
+
+mount_test_110 <-  mount_test %>%
+  filter(rhodamine == "110")
+
+mount_mod_B <- lm(CTCF ~ mount*conc, data=mount_test_B)
+anova(mount_mod_B)
+emmeans(mount_mod_B, pairwise~conc)
+emmeans(mount_mod_B, pairwise~mount|conc)
+
+emmeans(mount_mod_B, pairwise~conc|mount)
+
+mount_mod_110 <- lmer(CTCF ~ mount*conc + (1|trial), data=mount_test_110)
+anova(mount_mod_110)
+emmeans(mount_mod_110, pairwise~conc)
+emmeans(mount_mod_110, pairwise~mount|conc)
+
+emmeans(mount_mod_110, pairwise~conc|mount)
+```
+
+# Test: yeast
+```{r}
+yeast_1 <- mounted %>%
+  filter(mount!="PBS")
+
+ggplot(yeast_1, aes(yeast.test, CTCF, fill=rhodamine)) + geom_boxplot() + facet_grid(mount~.,labeller = as_labeller(Rhodamine2)) + xlab("Mite Treatment") + scale_fill_manual(values=c("darkolivegreen1", "deeppink4"),labels=c("Rhodamine 110", "Rhodamine B")) + theme_classic() + theme(legend.title = element_blank(), text = element_text(size = 15))+ theme(legend.position="bottom") +  scale_x_discrete(limits = c("cont", "no yeast", "yeast", "positive")) + scale_x_discrete(limits=c("no yeast","yeast", "cont", "positive"), labels=c("cont" = "-ve control", "positive" = "+ve control", "no yeast" = "empty vial", "yeast" = "fed yeast"))
+
+yeast_test_B <-  yeast_1 %>%
+  filter(rhodamine == "B")
+
+yeast_test_110 <-  yeast_1 %>%
+  filter(rhodamine == "110")
+
+yeast_mod_B <- lm(CTCF ~ mount*yeast.test, data=yeast_test_B)
+anova(yeast_mod_B)
+emmeans(yeast_mod_B, pairwise~yeast.test|mount)
+
+yeast_mod_110 <- lm(CTCF ~ mount*yeast.test, data=yeast_test_110)
+anova(yeast_mod_110)
+emmeans(yeast_mod_110, pairwise~yeast.test|mount)
+```
+
+#Test: Mounted
+```{r}
+ggplot(mated, aes(condition, CTCF, fill=Rhodamine)) + geom_boxplot() + xlab("Mite Treatment") + scale_fill_manual(values=c("darkolivegreen1", "deeppink4"),labels=c("Rhodamine 110", "Rhodamine B")) + theme_classic() + theme(legend.title = element_blank()) + ylim(0, 2000000) + theme(legend.position="bottom", text = element_text(size = 15)) + scale_x_discrete(labels=c("cont" = "-ve control", "female" = "mated female", "mated" = "mated male", "vial" = "virgin male in empty vial", "virgin"="+ve control"))
+
+mated_B <-mated %>%
+  filter(Rhodamine=="B")
+
+mated_mod_b <- lm(CTCF ~ condition, data=mated_B)
+anova(mated_mod_b)
+emmeans(mated_mod_b, pairwise~condition)
+
+mated_110 <-mated %>%
+  filter(Rhodamine=="110")
+
+mated_mod_110 <- lm(CTCF ~ condition, data=mated_110)
+anova(mated_mod_110)
+emmeans(mated_mod_110, pairwise~condition)
+
+mated5 <- mated %>%
+  filter(trial == "5")
+
+ggplot(mated5, aes(condition, CTCF, fill=Rhodamine)) + geom_boxplot() + xlab("Male Treatment") + scale_fill_manual(values=c("darkolivegreen1", "deeppink4"),labels=c("Rhodamine 110", "Rhodamine B")) + theme_bw() + theme(legend.title = element_blank())
+```
+
